@@ -1,56 +1,103 @@
-/**
- * image.pollinations.ai — 301 redirect to gen.pollinations.ai
- * Legacy service has moved. All requests redirect permanently.
- */
-const counts: Record<string, number> = {};
-let total = 0;
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { proxy } from "hono/proxy";
+import { deleteCacheEntry, generateCacheKey } from "./cache-utils.ts";
+import type { Env } from "./env";
+import { googleAnalytics } from "./middleware/analytics.ts";
+import { exactCache } from "./middleware/exact-cache";
+import { parseImageParams } from "./middleware/parse-image-params.ts";
+import { semanticCache } from "./middleware/semantic-cache.ts";
+import { setConnectingIp } from "./middleware/set-connecting-ip.ts";
+import { turnstileVerification } from "./middleware/turnstile.ts";
 
-export default {
-    async fetch(request: Request): Promise<Response> {
-        const url = new URL(request.url);
+const app = new Hono<Env>();
 
-        if (url.pathname === "/_stats") {
-            const top = Object.entries(counts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 50);
-            return new Response(
-                JSON.stringify({ total, paths: Object.fromEntries(top) }),
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                },
-            );
-        }
+app.use(
+    cors({
+        origin: "*",
+        allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+        allowHeaders: ["Content-Type"],
+    }),
+);
 
-        const key = "/" + (url.pathname.split("/")[1] || "");
-        counts[key] = (counts[key] || 0) + 1;
-        total++;
+// Delete cache entry endpoint
+// Usage: DELETE /delete/prompt/{prompt}?{same query params as original request}
+app.delete("/delete/prompt/:prompt", async (c) => {
+    const url = new URL(c.req.url);
+    // Transform the URL to match the original cache key format
+    // Replace /delete/prompt/ with /prompt/
+    url.pathname = url.pathname.replace(/^\/delete\/prompt\//, "/prompt/");
+    
+    const cacheKey = generateCacheKey(url);
+    console.log("[DELETE] Deleting cache entry:", cacheKey);
+    
+    const result = await deleteCacheEntry(cacheKey, c.env);
+    
+    if (result.r2Deleted || result.vectorDeleted) {
+        return c.json({
+            success: true,
+            cacheKey,
+            r2Deleted: result.r2Deleted,
+            vectorDeleted: result.vectorDeleted,
+        });
+    } else {
+        return c.json({
+            success: false,
+            cacheKey,
+            message: "Cache entry not found or already deleted",
+            r2Deleted: result.r2Deleted,
+            vectorDeleted: result.vectorDeleted,
+        }, 404);
+    }
+});
 
-        // Rewrite legacy paths to gen.pollinations.ai/image/...
-        let pathname = url.pathname;
-        if (pathname.startsWith("/prompt/")) {
-            pathname = "/image/" + pathname.slice("/prompt/".length);
-        } else if (pathname === "/models") {
-            pathname = "/image/models";
-        }
-
-        const newUrl = `https://gen.pollinations.ai${pathname}${url.search}`;
-        return new Response(
-            JSON.stringify({
-                message: "This service has moved to gen.pollinations.ai",
-                redirect: newUrl,
-                status: 301,
-            }),
-            {
-                status: 301,
-                headers: {
-                    Location: newUrl,
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
+// cache and proxy image requests
+app.all(
+    "/prompt/:prompt",
+    googleAnalytics,
+    setConnectingIp,
+    turnstileVerification,
+    parseImageParams,
+    exactCache,
+    semanticCache,
+    async (c) => {
+        const clientIP = c.get("connectingIp");
+        const targetUrl = new URL(c.req.url);
+        targetUrl.hostname = c.env.ORIGIN_HOST;
+        targetUrl.port = "";
+        console.debug("[PROXY] Forwarding to origin:", targetUrl.toString());
+        const response = await proxy(targetUrl, {
+            ...c.req,
+            headers: {
+                ...c.req.header(),
+                "x-forwarded-for": clientIP,
+                "x-forwarded-host": c.req.header("host"),
+                "x-real-ip": clientIP,
+                "cf-connecting-ip": clientIP,
             },
-        );
+        });
+        response.headers.set("X-Cache", "MISS");
+        return response;
     },
-};
+);
+
+// proxy other requests as is
+app.all("*", setConnectingIp, async (c) => {
+    const clientIP = c.get("connectingIp");
+    const targetUrl = new URL(c.req.url);
+    targetUrl.hostname = c.env.ORIGIN_HOST;
+    targetUrl.port = "";
+    console.debug("[PROXY] Forwarding to origin:", targetUrl.toString());
+    return proxy(targetUrl, {
+        ...c.req,
+        headers: {
+            ...c.req.header(),
+            "x-forwarded-for": clientIP,
+            "x-forwarded-host": c.req.header("host"),
+            "x-real-ip": clientIP,
+            "cf-connecting-ip": clientIP,
+        },
+    });
+});
+
+export default app;
