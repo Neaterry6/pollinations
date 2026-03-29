@@ -12,22 +12,10 @@ export const IMAGE_COSTS = {
             completionImageTokens: 0.0002, // ~$0.0002 per image (GPU cost estimate)
         },
     ],
-    "zimage": [
-        {
-            date: PRICING_START_DATE,
-            completionImageTokens: 0.0002, // ~$0.0002 per image (GPU cost estimate)
-        },
-    ],
     "kontext": [
         {
             date: PRICING_START_DATE,
             completionImageTokens: 0.04, // $0.04 per image (Azure pricing)
-        },
-    ],
-    "turbo": [
-        {
-            date: PRICING_START_DATE,
-            completionImageTokens: 0.0003, 
         },
     ],
     "nanobanana": [
@@ -66,24 +54,11 @@ export const IMAGE_SERVICES = {
         provider: "io.net",
         tier: "seed",
     },
-    "zimage": {
-        aliases: ["flux", "z-image"],
-        modelId: "zimage",
-        free: true,
-        provider: "io.net",
-        tier: "seed",
-    },
     "kontext": {
         aliases: [],
         modelId: "kontext",
         provider: "azure",
         tier: "nectar",
-    },
-    "turbo": {
-        aliases: [],
-        modelId: "turbo",
-        provider: "scaleway",
-        tier: "seed",
     },
     nanobanana: {
         aliases: [],

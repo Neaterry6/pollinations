@@ -30,8 +30,6 @@ type ServerInfo = {
 const SERVERS: Record<string, Server[]> = {
     flux: [],
     translate: [],
-    turbo: [],
-    zimage: [],
     sana: [],
 };
 
@@ -175,7 +173,7 @@ export const getNextServerUrl = async (
 // Wrapper functions for backward compatibility
 export const getNextFluxServerUrl = () => getNextServerUrl("flux");
 export const getNextTranslationServerUrl = () => getNextServerUrl("translate");
-export const getNextTurboServerUrl = () => getNextServerUrl("turbo");
+export const getNextSanaServerUrl = () => getNextServerUrl("sana");
 
 /**
  * Fetches the list of available servers from the main server.
@@ -333,13 +331,3 @@ const SANA_URL = process.env.SANA_URL || "http://localhost:19876";
 registerServer(SANA_URL, "sana");
 setInterval(() => registerServer(SANA_URL, "sana"), 30000);
 
-// Hardcoded Z-Image servers (GPUs 1-3 via SSH tunnel)
-for (const port of [19877, 19878, 19879]) {
-    const url = `http://localhost:${port}`;
-    registerServer(url, "zimage");
-}
-setInterval(() => {
-    for (const port of [19877, 19878, 19879]) {
-        registerServer(`http://localhost:${port}`, "zimage");
-    }
-}, 30000);

@@ -64,7 +64,7 @@ export const ImageParamsSchema = z
         seed: sanitizedSeed,
         model: z.preprocess((m) => {
             const model = String(m || "sana");
-            return model === "flux" || model === "z-image" ? "sana" : model;
+            return model === "flux" || model === "z-image" || model === "turbo" || model === "zimage" ? "sana" : model;
         }, z.literal(allowedModels).catch("sana")),
         enhance: sanitizedBoolean.catch(false),
         nologo: sanitizedBoolean.catch(false),

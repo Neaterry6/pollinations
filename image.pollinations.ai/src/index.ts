@@ -460,7 +460,7 @@ const checkCacheAndGenerate = async (
                     throw new Error("Authenticated users should use enter.pollinations.ai for image generation. This legacy endpoint is for anonymous requests only.");
                 }
                 
-                // Anonymous sana/turbo requests only
+                // Anonymous sana requests only
                 queueConfig = QUEUE_CONFIG;
                 logAuth(`${modelName} model (anonymous) - 120 second interval, cap=1`);
 

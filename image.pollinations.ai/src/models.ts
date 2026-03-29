@@ -32,12 +32,6 @@ export const IMAGE_CONFIG: ImageModelsConfig = {
         maxSideLength: 768,
     },
 
-    zimage: {
-        type: "pollinations",
-        enhance: true,
-        maxSideLength: 512,
-    },
-
     // Azure Flux Kontext - general purpose model
     kontext: {
         type: "kontext",
@@ -48,13 +42,6 @@ export const IMAGE_CONFIG: ImageModelsConfig = {
             flower: 2,    // Double the seed tier
             nectar: 2,    // Same as flower tier
         },
-    },
-
-    // Assuming 'turbo' is of type 'sd'
-    turbo: {
-        type: "pollinations",
-        enhance: true,
-        maxSideLength: 768,
     },
 
     // ByteDance ARK Seedream - high quality image generation

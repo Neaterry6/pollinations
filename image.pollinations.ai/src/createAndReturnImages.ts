@@ -8,7 +8,6 @@ import { hasSufficientTier } from "../../shared/tier-gating.js";
 import {
     fetchFromLeastBusyFluxServer,
     fetchFromLeastBusyServer,
-    getNextTurboServerUrl,
 } from "./availableServers.ts";
 import {
     addPollinationsLogoWithImagemagick,
@@ -102,11 +101,6 @@ export function calculateScaledDimensions(
     return { scaledWidth, scaledHeight, scalingFactor };
 }
 
-async function fetchFromTurboServer(params: object) {
-    const host = await getNextTurboServerUrl();
-    return fetch(`${host}/generate`, params);
-}
-
 /**
  * Calls the ComfyUI API to generate images.
  * @param {string} prompt - The prompt for image generation.
@@ -166,12 +160,8 @@ export const callComfyUI = async (
 
         // Single attempt - no retry logic
         try {
-            // Route to appropriate server pool based on model
-            // sana is the default, zimage/flux are aliases that route to sana servers
-            const fetchFunction =
-                safeParams.model === "turbo"
-                    ? fetchFromTurboServer
-                    : (opts: RequestInit) => fetchFromLeastBusyServer("sana", opts);
+            // Route all requests to sana server
+            const fetchFunction = (opts: RequestInit) => fetchFromLeastBusyServer("sana", opts);
             
             // Build headers with optional ENTER_TOKEN for backend authentication
             const headers: Record<string, string> = {
@@ -1004,7 +994,7 @@ const generateImage = async (
         }
     }
 
-    // Default: route to sana servers (handles sana, zimage and flux aliases)
+    // Default: route to sana servers
     progress.updateBar(requestId, 25, "Processing", "Using registered servers");
     return await callComfyUI(prompt, safeParams, concurrentRequests);
 };
