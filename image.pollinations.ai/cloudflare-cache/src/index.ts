@@ -81,14 +81,25 @@ app.all(
     },
 );
 
-// proxy other requests as is
+// proxy known utility endpoints as-is
 app.all("*", setConnectingIp, async (c) => {
     const clientIP = c.get("connectingIp");
-    const targetUrl = new URL(c.req.url);
-    targetUrl.hostname = c.env.ORIGIN_HOST;
-    targetUrl.port = "";
-    console.debug("[PROXY] Forwarding to origin:", targetUrl.toString());
-    return proxy(targetUrl, {
+    const url = new URL(c.req.url);
+    const pathname = url.pathname;
+
+    // Known utility paths pass through directly
+    const utilityPaths = ["/models", "/about", "/register", "/feed", "/crossdomain.xml", "/.well-known"];
+    const isUtility = utilityPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
+
+    // Everything else gets rewritten to /prompt/
+    if (!isUtility && !pathname.startsWith("/prompt") && !pathname.startsWith("/delete")) {
+        url.pathname = `/prompt${pathname}`;
+    }
+
+    url.hostname = c.env.ORIGIN_HOST;
+    url.port = "";
+    console.debug("[PROXY] Forwarding to origin:", url.toString());
+    return proxy(url, {
         ...c.req,
         headers: {
             ...c.req.header(),
